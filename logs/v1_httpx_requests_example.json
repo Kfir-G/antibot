@@ -1,0 +1,77 @@
+## v2: polite httpx scraper (600 requests, /listings/1..600)
+
+{
+  "ts": "2026-11-19T11:41:46.413560+00:00",
+  "ip": "127.0.0.1",
+  "method": "GET",
+  "path": "/listings/1",
+  "query": "",
+  "status": 200,
+  "response_ms": 2.9,
+  "http_version": "1.1",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0",
+  "accept_language": "es-ES,es;q=0.9,en;q=0.8",
+  "referer": "http://localhost:8000/search?city=Madrid",
+  "has_cookie": false,
+  "sec_fetch_dest": null,
+  "sec_fetch_mode": null,
+  "header_order": [
+    "host",
+    "accept",
+    "accept-encoding",
+    "connection",
+    "user-agent",
+    "accept-language",
+    "referer"
+  ]
+}
+
+- user_agent: now a copy of a real Firefox string. The format is correct,
+  so the UA alone no longer gives it away. Cost to fake: one line.
+- accept_language "es-ES,es;q=0.9,en;q=0.8": added by hand. It looks
+  plausible, so it stops being a signal on its own.
+- referer: added by hand. It points to /search?city=Madrid, a page this
+  client never requested. Every one of the 600 rows carries the same value.
+- header_order: host, accept, accept-encoding, connection, user-agent,
+  accept-language, referer. user-agent is fifth (Firefox puts it second),
+  and the headers the attacker added sit at the end, because the library
+  appends them after its own defaults. 7 headers instead of 14.
+- sec_fetch_dest null, sec_fetch_mode null: Firefox sends both on every
+  request. This is still the cleanest tell in the row.
+
+---
+running the analyzer:
+client                          n  navs  assets   gap_ms    cv  seq%  lang%  noref%  fav  burst  verdict
+Mozilla/5.0 (Macintosh; In    600   600       0      156  0.38   100    100       0    0     70  ok
+
+- burst 70 (threshold 100): the random 50-250 ms pauses keep the rate
+  under the limit, so the burst rule does not fire. With a threshold of
+  50 it would have been caught, which shows the threshold is a trade-off
+  and not a fact.
+- gap_ms 156: about 6 requests per second. Slower than v1 (1 ms), still
+  far faster than a person reading listings.
+- cv 0.38: this is the random generator showing through, not behavior.
+  A uniform pause of 0.05 to 0.25 s gives
+  0.2 / (sqrt(12) * 0.15) = about 0.385. human_sim (0.43) lands in the
+  same zone for the same reason, so cv does not separate them yet.
+  Compare with the real Firefox before choosing a threshold.
+- seq% 100: unchanged from v1. IDs go 1, 2, 3 with no gaps. The attacker
+  fixed the headers and the speed, but not the order it walks the site.
+- lang% 100, noref% 0: both columns now look human, and both were
+  defeated by adding one header. The cheapest signals are the first
+  ones an attacker removes.
+- fav 0: still no favicon, because it is not a browser.
+- assets 0: not evidence by itself. The analyzer counts rows with no
+  sec_fetch_dest as navigations, so httpx rows always land in "navs".
+- verdict ok: this is wrong in the sense that matters. The row contradicts
+  the Firefox claim (header order, missing sec-fetch headers), but no rule
+  reads those yet. The verdict only reflects the burst rule.
+
+What v2 teaches
+- Changed (cheap to fake): UA string, accept-language, referer, pause length.
+- Left alone (set by the library or the habit): header order, number of
+  headers, sec-fetch-* headers, sequential IDs, no favicon.
+- The referer is consistent on its face and inconsistent in context: one
+  value repeated 600 times, pointing to a page the client never visited.
+- Next rules to write: header_mismatch (UA claim vs header order and
+  sec-fetch), and top_referer_share (one referer repeated again and again).

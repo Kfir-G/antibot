@@ -1,0 +1,51 @@
+{
+  "ts": "2026-11-19T11:05:18.067469+00:00",
+  "ip": "127.0.0.1",
+  "method": "GET",
+  "path": "/search",
+  "query": "city=Madrid",
+  "status": 200,
+  "response_ms": 1.8,
+  "http_version": "1.1",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0",
+  "accept_language": "es-ES,es;q=0.9",
+  "referer": null,
+  "has_cookie": false,
+  "sec_fetch_dest": null,
+  "sec_fetch_mode": null,
+  "header_order": [
+    "host",
+    "accept",
+    "accept-encoding",
+    "connection",
+    "user-agent",
+    "accept-language"
+  ]
+}
+
+The row claims to be Firefox 158 on a Mac. What fields align that claim?
+
+1. The `http_version` is 1.1, while Firefox 158 should be using HTTP/2.
+2. The `accept_language` is set to "es-ES,es;q=0.9", which is not a typical setting for a Firefox browser on a Mac.
+3. The `user_agent` string does not match the expected format for Firefox 158 on MacOS.
+
+The row claims to be Firefox 158 on a Mac. What fields contradict that claim?
+
+1. Header order. It’s host, accept, accept-encoding, connection, user-agent, accept-language. Real Firefox sent host, user-agent, accept, accept-language, accept-encoding, .... 
+The user-agent sits fifth instead of second, and accept-language was added at the end, which is how a library appends a header someone added by hand.
+2. Header count. 6 headers instead of 14. Missing: dnt, upgrade-insecure-requests, sec-fetch-*, priority, sec-gpc.
+3. sec_fetch_dest and sec_fetch_mode are null. Every modern Firefox sends them on every request. Their absence is the cleanest tell in the row.
+
+---
+
+running the analyzer:
+client                          n  navs  assets   gap_ms    cv  seq%  lang%  noref%  fav  burst  verdict
+Mozilla/5.0 (Macintosh; In     41    41       0      946  0.43     0    100     100    0     14  ok
+
+there are 41 navigations (1 search + 40 listings), so the log was cleared before it and nothing else has run yet. Here’s how to read each column:
+
+burst 14, ok: about one page per second gives 14 in a 10 s window, far under 100. The rule correctly leaves it alone, and this is your false-positive check passing.
+gap_ms 946 and cv 0.43: the delay in the script is uniform(0.2, 1.5), and a uniform spread like that gives a CV of about 0.44, so the 0.43 is just the script’s random generator showing through. Real people have much heavier tails: many quick clicks, then a long pause to read. I’d expect your real Firefox to show a noticeably higher number, so don’t choose a threshold for cv until you’ve seen it.
+seq% 0: the IDs are random, so no sequential steps. That’s the human-like part of this script.
+noref% 100: this is where human_sim is unlike a person. It’s httpx, which never sends a referer. A person clicking through pages would show far less than 100.
+lang% 100, fav 0: the language header was typed in by hand, and there’s no favicon because it’s not a browser.

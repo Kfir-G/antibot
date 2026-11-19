@@ -1,0 +1,77 @@
+[
+  {
+    "ts": "2026-11-19T11:41:46.413560+00:00",
+    "ip": "127.0.0.1",
+    "method": "GET",
+    "path": "/listings/1",
+    "query": "",
+    "status": 200,
+    "response_ms": 2.9,
+    "http_version": "1.1",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0",
+    "accept_language": "es-ES,es;q=0.9,en;q=0.8",
+    "referer": "http://localhost:8000/search?city=Madrid",
+    "has_cookie": false,
+    "sec_fetch_dest": null,
+    "sec_fetch_mode": null,
+    "header_order": [
+      "host",
+      "accept",
+      "accept-encoding",
+      "connection",
+      "user-agent",
+      "accept-language",
+      "referer"
+    ]
+  },
+  {
+    "ts": "2026-11-19T11:41:46.543016+00:00",
+    "ip": "127.0.0.1",
+    "method": "GET",
+    "path": "/listings/2",
+    "query": "",
+    "status": 200,
+    "response_ms": 0.4,
+    "http_version": "1.1",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0",
+    "accept_language": "es-ES,es;q=0.9,en;q=0.8",
+    "referer": "http://localhost:8000/search?city=Madrid",
+    "has_cookie": false,
+    "sec_fetch_dest": null,
+    "sec_fetch_mode": null,
+    "header_order": [
+      "host",
+      "accept",
+      "accept-encoding",
+      "connection",
+      "user-agent",
+      "accept-language",
+      "referer"
+    ]
+  },
+  {
+    "ts": "2026-11-19T11:41:46.752028+00:00",
+    "ip": "127.0.0.1",
+    "method": "GET",
+    "path": "/listings/3",
+    "query": "",
+    "status": 200,
+    "response_ms": 0.8,
+    "http_version": "1.1",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0",
+    "accept_language": "es-ES,es;q=0.9,en;q=0.8",
+    "referer": "http://localhost:8000/search?city=Madrid",
+    "has_cookie": false,
+    "sec_fetch_dest": null,
+    "sec_fetch_mode": null,
+    "header_order": [
+      "host",
+      "accept",
+      "accept-encoding",
+      "connection",
+      "user-agent",
+      "accept-language",
+      "referer"
+    ]
+  }
+]

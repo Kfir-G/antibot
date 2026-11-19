@@ -1,0 +1,21 @@
+[project]
+name = "antibot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Kfir-G", email = "kfirg15@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.163.1",
+    "httpx>=0.28.1",
+    "playwright>=1.65.2",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+antibot = "antibot:main"
+
+[tool.uv]
+package = false

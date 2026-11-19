@@ -1,0 +1,121 @@
+## v3: Playwright browser (60 pages, /view/1..60)
+
+{
+  "ts": "2026-11-19T12:06:41.013638+00:00",
+  "ip": "127.0.0.1",
+  "method": "GET",
+  "path": "/view/1",
+  "query": "",
+  "status": 200,
+  "response_ms": 1.5,
+  "http_version": "1.1",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/159.0.8154.6 Safari/537.36",
+  "accept_language": null,
+  "referer": null,
+  "has_cookie": false,
+  "sec_fetch_dest": "document",
+  "sec_fetch_mode": "navigate",
+  "header_order": [
+    "host", "connection", "sec-ch-ua", "sec-ch-ua-mobile",
+    "sec-ch-ua-platform", "upgrade-insecure-requests", "user-agent",
+    "accept", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-user",
+    "sec-fetch-dest", "accept-encoding"
+  ]
+}
+
+(plus 2 asset rows per page: /static/style.css and /static/app.js)
+
+Row evidence
+- user_agent "HeadlessChrome/159.0.8154.6": the client names itself
+  "Headless". This is Playwright's default, and changing it is one option
+  in the launch code, so it is a cheap signal to catch and a cheap one to
+  remove. Note the "10_15_7" with underscores: that is Chrome's format.
+  Firefox writes "10.15". The UA is a different browser family from
+  v2's, and it is written correctly.
+- header_order: 13 headers, led by host and connection, with the sec-ch-ua
+  client hints, user-agent in 7th place and sec-fetch-* near the end. This
+  is a browser's header set, not a library's. We have not captured a real
+  Chrome in this lab to compare against, so read it as "plausible", not
+  "proven identical".
+- Two different orders in the same session: pages (with
+  upgrade-insecure-requests and sec-fetch-user) and assets (with referer,
+  without those two). Real browsers behave this way, and v1 and v2 never
+  did. Producing it takes a real browser engine.
+- sec_fetch_dest / sec_fetch_mode: "document"/"navigate" for pages,
+  "style"/"no-cors" and "script"/"no-cors" for assets. Coherent, and the
+  analyzer can now tell pages from assets.
+- accept_language null on every request: a real Chrome sends it on all of
+  them. Browser-like headers with no language is a contradiction inside
+  the row. (Playwright sends it only if you set a locale.)
+- referer: null on every page navigation, correct on assets (they point to
+  the page that loaded them). Every page is a direct goto(), so the client
+  never "arrives" from another page.
+- Timing inside a page: style.css arrives 12 ms after the page, app.js
+  about 1 ms after that. A browser loads assets on its own, and this is
+  the first client in the lab that does.
+
+---
+running the analyzer (estimates from the earlier v3 run; replace with yours):
+client                          n  navs  assets   gap_ms    cv  seq%  lang%  noref%  fav  burst  verdict
+...HeadlessChrome/159.0.8154   180    60     120    ~2500 ~0.35   100      0     100    0    ~5    ok
+
+- n 180, navs 60, assets 120: 2 assets per page, as expected from a real
+  browser. For this to show up, sec_fetch_dest must be in the log and the
+  server restarted.
+- burst about 5 (threshold 100): the rule never gets close. It is not
+  designed for a slow client.
+- gap_ms about 2500: the script sleeps uniform(1, 4) seconds. Human-slow,
+  but see cv.
+- cv about 0.35: uniform(1, 4) has a standard deviation of 0.87 and a
+  mean of 2.5, so cv = 0.87 / 2.5 = 0.35. Same lesson as v2 (0.38): the
+  random generator shows through. A person's pauses have a heavy tail
+  (long reading pauses), so the real Firefox should come out higher.
+- seq% 100: the browser walks /view/1, 2, 3 in order. Real browser, same
+  crawl pattern as v1 and v2.
+- lang% 0: no Accept-Language at all.
+- noref% 100: 60 direct visits, no navigation arrives from another page.
+- fav 0: headless Chromium does not request a favicon.
+- verdict ok: again only the burst rule decides, and v3 is slow.
+
+What v3 teaches
+- Defeated by using a real browser (cost: a browser per worker, more CPU
+  and memory per page): header order, number of headers, sec-fetch-*,
+  loading CSS and JS, two header sets in one session.
+- Left alone: seq% (same walk as v1), "HeadlessChrome" in the UA, missing
+  Accept-Language, referer always null on navigations, uniform timing,
+  no cookie or session, no favicon.
+- Observation: the signals that survive are about BEHAVIOR (what it
+  visits and in what order), not about HEADERS. This is the point of the
+  attacker-economics table: headers are cheap once the browser is real,
+  while acting like a person is not.
+- Next features to log: sec-fetch-site (a direct goto() gives "none"
+  every time, while a person clicking a link gives "same-origin"), a
+  cookie that persists across pages, and anything the page's JavaScript
+  can report back.
+
+---
+
+---
+running the analyzer:
+client                          n  navs  assets   gap_ms    cv  seq%  lang%  noref%  fav  burst  verdict
+Mozilla/5.0 (Macintosh; In    180    60     120     2596  0.37   100      0     100    0      6  ok
+
+- n 180, navs 60, assets 120: exactly 2 assets per page. This confirms
+  sec_fetch_dest is now logged, so the analyzer can tell pages from
+  assets. It is the first client in the lab with assets above 0.
+- burst 6 (threshold 100): the rule never gets close. It was built for a
+  fast client, and v3 is slow.
+- gap_ms 2596: the script sleeps uniform(1, 4) seconds, mean 2.5, plus
+  about 0.1 s of browser overhead for loading the page and scrolling.
+  Human-slow, but see cv.
+- cv 0.37: uniform(1, 4) has a standard deviation of 0.87 and a mean of
+  2.5, so the expected cv is 0.35. The measured 0.37 is that plus
+  sampling noise from only 59 gaps. Same lesson as v2 (0.38) and
+  human_sim (0.43): the random generator shows through, so cv does not
+  separate these clients. A real person's pauses should have a heavier
+  tail, but that is still a guess until the real Firefox is measured.
+- seq% 100: the browser walks /view/1, 2, 3 in order.
+- lang% 0: no Accept-Language on any request.
+- noref% 100: 60 direct visits, none arriving from another page.
+- fav 0: headless Chromium does not request a favicon.
+- verdict ok: only the burst rule decides, and v3 never comes close.
